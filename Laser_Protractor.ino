@@ -1,6 +1,9 @@
+#include <LiquidCrystal_I2C.h>
+#include <math.h>
 #include <VL53L0X.h>
 #include <Wire.h>
 
+LiquidCrystal_I2C lcd(0x27, 20, 4);
 VL53L0X senseL;
 VL53L0X senseR;
 
@@ -9,23 +12,24 @@ VL53L0X senseR;
 
 void setup()
 {
+
   Serial.begin(9600);
   Wire.begin();
   // Setting pin modes for XSHDN pins on sensors
-  pinMode(SENL,OUTPUT);
-  pinMode(SENR,OUTPUT);
+  pinMode(SENL, OUTPUT);
+  pinMode(SENR, OUTPUT);
   Serial.println("Start");
   Serial.println("Shutting down both sensors");
   // bring sensors to shutdown mode
-  digitalWrite(SENL,LOW);
-  digitalWrite(SENR,LOW);
+  digitalWrite(SENL, LOW);
+  digitalWrite(SENR, LOW);
   delay(10);
   Serial.println("Turning on left sensor and setting to 0x23");
-  digitalWrite(SENL,HIGH);
+  digitalWrite(SENL, HIGH);
   delay(100);
   senseL.setAddress(0x70);
   delay(50);
-  digitalWrite(SENR,HIGH); // bringing right out of shutdown
+  digitalWrite(SENR, HIGH); // bringing right out of shutdown
   delay(100);
   senseR.setAddress(0x40);
   delay(100);
@@ -33,28 +37,61 @@ void setup()
   senseL.init();
   senseL.setTimeout(500);
   senseL.startContinuous();
-  
+
   Serial.println("Sen2 init");
   senseR.init();
   senseR.setTimeout(500);
   senseR.startContinuous();
 
-  Serial.println("finished initiallizing!");
-  
-   
+  //Serial.println("finished initiallizing!");
+
+  lcd.init();
+  lcd.backlight();
+  lcd.setCursor(0, 0);
+  lcd.print("Theta");
+  lcd.setCursor(0, 1);
+
 
 }
-
+uint16_t left = 0;
+uint16_t right = 0;
+float diff = 0;
+float theta = 0;
+float math_var;
+long prev = 0;
+long curr = 0;
+int count=0;
+float runningSum= 0;
 void loop() {
-  Serial.print("Left: ");
-  Serial.print(senseL.readRangeContinuousMillimeters());
-  Serial.print("| Right: ");
-  Serial.print(senseR.readRangeContinuousMillimeters());
-  Serial.println();
+  count++;
+  
+  curr = millis();
+  left = senseL.readRangeContinuousMillimeters()-18;
+  right = senseR.readRangeContinuousMillimeters();
+  diff = (left - right);
+  math_var = fabs(diff);
 
+  theta = atan2(math_var, (float)53) * (180 / 3.14159);
+  runningSum += theta;
+  Serial.print("Left: ");
+  Serial.print(left);
+  Serial.print("| Right: ");
+  Serial.println(right);
+  Serial.println(diff);
+  
+  if (curr - prev > 1000) {
+    lcd.setCursor(0, 1);
+    lcd.print(runningSum/count);
+    lcd.setCursor(0,2);
+    lcd.print(diff);
+    prev = curr;
+   
+    count = 0;
+    runningSum=0;
+  }
 }
 //void loop() {
-//  Serial.println(senseL.getAddress(),HEX);
+//  Serial.println(senseL.getAddress(), HEX);
 //  byte error, address;
 //  int nDevices;
 //
